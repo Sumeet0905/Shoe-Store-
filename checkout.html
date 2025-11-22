@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Checkout - Kiks</title>
+    <link rel="stylesheet" href="./Assets/css/style.css">
+    <link rel="stylesheet" href="./Assets/css/checkout.css">
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans&display=swap" rel="stylesheet">
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+        import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyByIwkUygaxysfueK5GbXVQsX0uVDUis-s",
+            authDomain: "shoe-store-72335.firebaseapp.com",
+            databaseURL: "https://shoe-store-72335-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "shoe-store-72335",
+            storageBucket: "shoe-store-72335.firebasestorage.app",
+            messagingSenderId: "1061141119620",
+            appId: "1:1061141119620:web:f9078d3d29421acb1538d1",
+            measurementId: "G-QGYLGVSQEK"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // Expose a small helper for the non-module code to call
+        window.__db = db;
+        window.__auth = auth;
+        window.saveOrderToFirestore = async function(order){
+            const ref = await addDoc(collection(db, 'orders'), order);
+            return ref;
+        }
+    </script>
+</head>
+<body class="page-checkout">
+    <nav class="product-nav">
+        <div class="logo"><a href="index.html"><img src="./Assets/img/logo.png" alt="logo"></a></div>
+        <ul class="nav-links">
+            <a class="list" href="index.html"><li>Home</li></a>
+            <a class="list" href="products.html"><li>Products</li></a>
+        </ul>
+        <ul class="nav-icons">
+            <a class="list" href="wishlist.html"><li><span class="material-symbols-outlined">favorite</span></li></a>
+            <a class="list" href="cart.html"><li><span class="material-symbols-outlined">shopping_bag</span></li></a>
+        </ul>
+    </nav>
+
+    <main class="checkout-main">
+        <section class="checkout-left">
+            <h2>Delivery Details</h2>
+            <form id="addressForm" class="card">
+                <div class="row">
+                    <label>Full name</label>
+                    <input id="name" type="text" placeholder="Jane Doe" required>
+                </div>
+                <div class="row">
+                    <label>Phone</label>
+                    <input id="phone" type="tel" placeholder="+1 555 555 5555" required>
+                </div>
+                <div class="row">
+                    <label>Address</label>
+                    <input id="address" type="text" placeholder="123 Main St, Apt 4B" required>
+                </div>
+                <div class="row">
+                    <label>City</label>
+                    <input id="city" type="text" placeholder="City" required>
+                </div>
+                <div class="row small">
+                    <div>
+                        <label>State</label>
+                        <input id="state" type="text" placeholder="State" required>
+                    </div>
+                    <div>
+                        <label>Postal Code</label>
+                        <input id="postal" type="text" placeholder="ZIP / Postal" required>
+                    </div>
+                </div>
+                <div class="row">
+                    <label>Delivery notes (optional)</label>
+                    <input id="notes" type="text" placeholder="Leave at door, ring bell, etc.">
+                </div>
+            </form>
+
+            <div class="card mt-12">
+                <h3>Order summary</h3>
+                <div id="orderItems"></div>
+            </div>
+
+            <div class="actions">
+                <button id="backToCart" type="button" class="btn-outline">Back to cart</button>
+                <button id="toPayment" type="button" class="control-btn">Continue to Payment</button>
+            </div>
+        </section>
+
+        <aside class="checkout-right card">
+            <div class="sticky">
+                <h3>Payment & delivery</h3>
+                <div class="summary-row"><span>Items</span><span id="itemsCount">0</span></div>
+                <div class="summary-row"><span>Subtotal</span><span id="subTotal">$0.00</span></div>
+                <div class="summary-row"><span>Delivery</span><span id="deliveryFee">$5.00</span></div>
+                <hr>
+                <div class="summary-row total"><span>Total</span><span id="totalPrice">$0.00</span></div>
+                <div class="reviews card mt-12">
+                    <h4>Product reviews</h4>
+                    <div id="reviewsList">
+                        </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script>
+        // --- CONSTANTS ---
+        const CART_KEY = 'kiks_cart'; // MATCHES cart.html
+        const ORDER_KEY = 'kiks_order'; // Used for payment.html
+
+        // --- CORE UTILITY FUNCTIONS ---
+
+        /**
+         * FIX 1: Retrieve cart using the correct, standardized key.
+         * Simplifies retrieval to use the single source of truth from cart.html.
+         */
+        function getCart(){
+            const raw = localStorage.getItem(CART_KEY);
+            if(!raw) {
+                console.warn(`Cart is empty or not found under key: ${CART_KEY}.`);
+                return [];
+            }
+            try{
+                const cart = JSON.parse(raw) || [];
+                // Filter out any invalid items (e.g., null or non-objects)
+                return cart.filter(item => item && typeof item === 'object');
+            } catch(e){
+                console.error('Failed to parse cart JSON (Data corrupted):', e, raw);
+                return [];
+            }
+        }
+        
+        function saveOrder(o){ localStorage.setItem(ORDER_KEY, JSON.stringify(o)); }
+
+        function formatPrice(v){ return '$' + (Number(v)||0).toFixed(2); }
+        
+        // --- RENDERING & CALCULATIONS ---
+        
+        /**
+         * FIX 2: Correctly calculate item pricing and use properties from the cart data.
+         * We rely on the `price` and `qty` fields being numeric, as set by cart.html.
+         */
+        function renderOrderItems(){
+            const items = getCart();
+            const el = document.getElementById('orderItems');
+            const itemsCount = document.getElementById('itemsCount');
+            const subTotalEl = document.getElementById('subTotal');
+            const totalPriceEl = document.getElementById('totalPrice');
+            const DELIVERY_FEE = 5.00;
+
+            if(!items.length){ 
+                el.innerHTML = '<p class="muted">Your cart is empty. Please return to the cart page.</p>'; 
+                itemsCount.textContent='0'; 
+                subTotalEl.textContent='$0.00'; 
+                totalPriceEl.textContent=formatPrice(DELIVERY_FEE);
+                return; 
+            }
+
+            let subtotal = 0;
+            let totalQty = 0;
+            const html = items.map(i => {
+                // Ensure price and quantity are treated as numbers
+                const priceNum = Number(i.price) || 0; 
+                const qty = Number(i.qty) || 1; 
+                const lineTotal = priceNum * qty;
+                
+                subtotal += lineTotal;
+                totalQty += qty;
+
+                // Set selected size based on data from cart.html (if available)
+                const sel = (val) => (i.size && String(i.size) === String(val)) ? 'selected' : '';
+
+                return (`
+                <div class="order-item">
+                    <div class="oi-thumb"><img src="${i.img}" onerror="this.src='./Assets/img/hero-image.png'"></div>
+                    <div class="oi-body">
+                        <div class="oi-name">${i.name || 'Product'}</div>
+                        <div class="oi-meta">
+                            <label>Size</label>
+                            <select class="size-select" data-id="${i.id}">
+                                <option value="6" ${sel(6)}>6</option>
+                                <option value="7" ${sel(7)}>7</option>
+                                <option value="8" ${sel(8)}>8</option>
+                                <option value="9" ${sel(9)}>9</option>
+                                <option value="10" ${sel(10)}>10</option>
+                            </select>
+                            <div class="oi-price">${formatPrice(priceNum)} x ${qty} = ${formatPrice(lineTotal)}</div>
+                        </div>
+                    </div>
+                </div>
+                `);
+            }).join('');
+
+            el.innerHTML = html;
+
+            const total = subtotal + DELIVERY_FEE;
+            
+            // Update summary display
+            itemsCount.textContent = totalQty;
+            subTotalEl.textContent = formatPrice(subtotal);
+            totalPriceEl.textContent = formatPrice(total);
+        }
+
+        // --- NON-CRITICAL FUNCTIONS (UNCHANGED) ---
+
+        function populateReviews(){
+            const reviews = [
+                {user:'Asha', text:'Very comfy and great grip', rating:5},
+                {user:'Liam', text:'Good value for money', rating:4},
+                {user:'Noah', text:'Stylish but runs a bit small', rating:4}
+            ];
+            const el = document.getElementById('reviewsList');
+            el.innerHTML = reviews.map(r=> `<div class="review"><strong>${r.user}</strong><span class="muted"> - ${'★'.repeat(r.rating)}</span><div class="text-sm">${r.text}</div></div>`).join('');
+        }
+
+        // --- EVENT LISTENERS ---
+
+        document.addEventListener('DOMContentLoaded', ()=>{
+            renderOrderItems();
+            populateReviews();
+            document.getElementById('backToCart').addEventListener('click', ()=> location.href='cart.html');
+            
+            document.getElementById('toPayment').addEventListener('click', async ()=>{
+                const btn = document.getElementById('toPayment');
+                btn.disabled = true;
+                const originalLabel = btn.textContent;
+                btn.textContent = 'Saving...';
+
+                try {
+                    // 1. Get Address Data
+                    const addr = {
+                        name: document.getElementById('name').value.trim(),
+                        phone: document.getElementById('phone').value.trim(),
+                        address: document.getElementById('address').value.trim(),
+                        city: document.getElementById('city').value.trim(),
+                        state: document.getElementById('state').value.trim(),
+                        postal: document.getElementById('postal').value.trim(),
+                        notes: document.getElementById('notes').value.trim()
+                    };
+
+                    if (!addr.name || !addr.phone || !addr.address || !addr.city || !addr.state || !addr.postal) {
+                        alert("Please fill in all required fields.");
+                        throw new Error("Validation failed: Missing required address fields.");
+                    }
+
+                    // 2. Get Cart Data and Totals
+                    const items = getCart();
+                    if (!items.length) {
+                        alert("Your cart is empty.");
+                        throw new Error("Validation failed: Cart is empty.");
+                    }
+
+                    // Collect selected sizes (if modified on checkout page)
+                    const sizes = {};
+                    document.querySelectorAll('.size-select').forEach(select => {
+                        sizes[select.dataset.id] = select.value;
+                    });
+                    
+                    // Recalculate totals based on current cart data (ensures displayed total is correct)
+                    const subtotal = items.reduce((s,i)=>{
+                        return s + (Number(i.price) || 0) * (Number(i.qty) || 1);
+                    }, 0);
+                    const delivery = 5.00;
+                    const total = Number((subtotal + delivery).toFixed(2));
+
+                    // 3. Create Final Order Object
+                    const order = {
+                        // Use original items from cart
+                        items: items.map(it => ({ 
+                            ...it, 
+                            size: sizes[it.id] || it.size || '' // Override size if selected on checkout
+                        })),
+                        address: addr,
+                        created: new Date().toISOString(),
+                        status: "pending",
+                        subtotal: Number(subtotal.toFixed(2)),
+                        delivery,
+                        total
+                    };
+                    
+                    // 4. Attach User ID (if logged in)
+                    try {
+                        if (window.__auth && window.__auth.currentUser) {
+                            order.userId = window.__auth.currentUser.uid;
+                        }
+                    } catch (e) { /* ignore auth errors */ }
+
+                    // 5. Persist Order Locally (for payment.html)
+                    saveOrder(order);
+                    console.log('Order successfully saved to localStorage for payment page.');
+
+
+                    // 6. Save to Firestore (Database)
+                    if (!window.saveOrderToFirestore) {
+                        throw new Error('Firebase helper not available. Ensure firebase module script loaded correctly.');
+                    }
+                    
+                    const addPromise = window.saveOrderToFirestore(order);
+                    const timeoutMs = 10000;
+                    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Firestore write timed out after ' + timeoutMs + 'ms')), timeoutMs));
+
+                    await Promise.race([addPromise, timeoutPromise]);
+                    console.log("Order successfully saved to Firebase.");
+                    
+                    // 7. Redirect
+                    setTimeout(() => location.href = 'payment.html', 200);
+
+                } catch (error) {
+                    console.error("Error during checkout process:", error);
+                    alert("Failed to continue to payment. Please check required fields or try again.");
+                    
+                    // Reset button state on failure
+                    btn.disabled = false;
+                    btn.textContent = originalLabel;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

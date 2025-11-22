@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Wishlist - Kiks</title>
+    <link rel="stylesheet" href="./Assets/css/style.css">
+    <link rel="stylesheet" href="./Assets/css/products.css">
+    <link rel="stylesheet" href="./Assets/css/wishlist.css">
+</head>
+<body class="page-wishlist">
+    <nav class="product-nav">
+        <div class="logo"><a href="index.html"><img src="./Assets/img/logo.png" alt="logo"></a></div>
+        <ul class="nav-links">
+            <a class="list" href="index.html"><li>Home</li></a>
+            <a class="list" href="products.html"><li>Products</li></a>
+        </ul>
+        <ul class="nav-icons">
+            <a class="list" href="wishlist.html"><li><span class="material-symbols-outlined">favorite</span></li></a>
+            <a class="list" href="cart.html"><li><span class="material-symbols-outlined">shopping_bag</span></li></a>
+        </ul>
+    </nav>
+
+    <main class="wishlist-container">
+        <div class="wish-header">
+            <div>
+                <div class="wish-title">Your Wishlist</div>
+                <div class="text-sm muted">Save products you love for later — manage or move to cart.</div>
+            </div>
+            <div class="wish-controls">
+                <div class="wish-toolbar">
+                    <label class="text-sm" style="display:flex;align-items:center;gap:8px;"><input id="selectAll" type="checkbox"> Select all</label>
+                    <select id="sortBy" class="text-sm">
+                        <option value="newest">Newest</option>
+                        <option value="price-asc">Price: Low to High</option>
+                        <option value="price-desc">Price: High to Low</option>
+                    </select>
+                </div>
+                <div>
+                    <button id="moveSelected" class="control-btn">Move Selected to Cart</button>
+                    <button id="clearWish" class="btn-outline danger">Clear Wishlist</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="wishList" class="mt-4"></div>
+    </main>
+
+    <script>
+        const WISH_KEY = 'kiks_wishlist';
+        const CART_KEY = 'kiks_cart';
+        const VIEW_KEY = 'kiks_wish_view';
+
+        function getWish(){ return JSON.parse(localStorage.getItem(WISH_KEY))||[]; }
+        function setWish(w){ localStorage.setItem(WISH_KEY, JSON.stringify(w)); renderWish(); }
+        function getCart(){ return JSON.parse(localStorage.getItem(CART_KEY))||[]; }
+        function setCart(c){ localStorage.setItem(CART_KEY, JSON.stringify(c)); }
+
+        function formatPrice(v){ return '$' + (Number(v)||0).toFixed(2); }
+
+        function renderWish(){
+            const list = getWish();
+            const container = document.getElementById('wishList');
+            if(!list.length){
+                container.innerHTML = `<div class="empty-state">
+                    <h3>No items in your wishlist</h3>
+                    <p class="text-sm muted">Browse products and tap the heart to save your favourites.</p>
+                </div>`;
+                return;
+            }
+
+            // apply sorting
+            const sort = document.getElementById('sortBy')?.value || 'newest';
+            let sorted = [...list];
+            if(sort==='price-asc') sorted.sort((a,b)=> (a.price||0)-(b.price||0));
+            else if(sort==='price-desc') sorted.sort((a,b)=> (b.price||0)-(a.price||0));
+
+            // build HTML: grid view
+            const view = localStorage.getItem(VIEW_KEY) || 'grid';
+            if(view==='list'){
+                container.className = 'wish-list';
+                container.innerHTML = sorted.map(i=>`
+                    <div class="wish-card">
+                        <input class="select" type="checkbox" data-id="${i.id}">
+                        <div class="thumb"><img src="${i.img}" onerror="this.src='./Assets/img/hero-image.png'" alt="${i.name}"></div>
+                        <div class="wish-meta">
+                            <div class="wish-title-sm">${i.name}</div>
+                            <div class="text-sm muted">${i.brand||''}</div>
+                            <div class="wish-price">${formatPrice(i.price)}</div>
+                        </div>
+                        <div class="wish-actions">
+                            <button class="control-btn" onclick="moveToCart('${i.id}')">Add to Cart</button>
+                            <button class="icon-btn" onclick="removeWish('${i.id}')">Remove</button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.className = 'wish-grid';
+                container.innerHTML = sorted.map(i=>`
+                    <div class="wish-card">
+                        <input class="select" type="checkbox" data-id="${i.id}">
+                        <div class="thumb"><img src="${i.img}" onerror="this.src='./Assets/img/hero-image.png'" alt="${i.name}"></div>
+                        <div class="wish-meta">
+                            <div class="wish-title-sm">${i.name}</div>
+                            <div class="text-sm muted">${i.brand||''}</div>
+                            <div class="wish-price">${formatPrice(i.price)}</div>
+                        </div>
+                        <div class="wish-actions">
+                            <button class="control-btn" onclick="moveToCart('${i.id}')">Add to Cart</button>
+                            <button class="icon-btn" onclick="removeWish('${i.id}')">Remove</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // wire up select all checkbox state
+            const selectAll = document.getElementById('selectAll');
+            if(selectAll) selectAll.checked = false;
+        }
+
+        function moveToCart(id){
+            const wish = getWish();
+            const item = wish.find(i=>i.id===id);
+            if(!item) return;
+            let cart = getCart();
+            const found = cart.find(i=>i.id===id);
+            if(found) found.qty = (found.qty||1)+1;
+            else cart.push({...item, qty:1});
+            setCart(cart);
+            setWish(wish.filter(i=>i.id!==id));
+            // small toast replacement
+            alert(item.name + ' moved to cart.');
+        }
+
+        function removeWish(id){
+            if(!confirm('Remove this item from your wishlist?')) return;
+            setWish(getWish().filter(i=>i.id!==id));
+        }
+
+        function moveSelectedToCart(){
+            const checked = Array.from(document.querySelectorAll('.select:checked')).map(cb=>cb.dataset.id);
+            if(!checked.length){ alert('No items selected.'); return; }
+            let wish = getWish();
+            let cart = getCart();
+            checked.forEach(id=>{
+                const item = wish.find(i=>i.id===id);
+                if(!item) return;
+                const found = cart.find(i=>i.id===id);
+                if(found) found.qty = (found.qty||1)+1;
+                else cart.push({...item, qty:1});
+            });
+            // remove moved items from wishlist
+            wish = wish.filter(i=> !checked.includes(i.id));
+            setCart(cart); setWish(wish);
+            alert(checked.length + ' item(s) moved to cart.');
+        }
+
+        function clearWishlist(){
+            if(!confirm('Clear all items from wishlist?')) return;
+            setWish([]);
+        }
+
+        // simple sorting and select-all wiring
+        document.addEventListener('DOMContentLoaded', ()=>{
+            renderWish();
+            document.getElementById('sortBy')?.addEventListener('change', renderWish);
+            document.getElementById('moveSelected')?.addEventListener('click', moveSelectedToCart);
+            document.getElementById('clearWish')?.addEventListener('click', clearWishlist);
+            document.getElementById('selectAll')?.addEventListener('change', function(){
+                const all = Array.from(document.querySelectorAll('.select'));
+                all.forEach(cb=>cb.checked = this.checked);
+            });
+        });
+    </script>
+</body>
+</html>

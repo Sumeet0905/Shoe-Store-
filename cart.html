@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Cart - Kiks</title>
+    <link rel="stylesheet" href="./Assets/css/style.css">
+    <link rel="stylesheet" href="./Assets/css/products.css">
+        <link rel="stylesheet" href="./Assets/css/cart.css">
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans&display=swap" rel="stylesheet">
+</head>
+<body class="page-cart">
+    <nav class="product-nav">
+        <div class="logo"><a href="index.html"><img src="./Assets/img/logo.png" alt="logo"></a></div>
+        <ul class="nav-links">
+            <a class="list" href="index.html"><li>Home</li></a>
+            <a class="list" href="products.html"><li>Products</li></a>
+        </ul>
+        <ul class="nav-icons">
+            <a class="list" href="wishlist.html"><li><span class="material-symbols-outlined">favorite</span></li></a>
+            <a class="list" href="cart.html"><li><span class="material-symbols-outlined">shopping_bag</span></li></a>
+        </ul>
+    </nav>
+
+    <main class="cart-main">
+        <section class="cart-left">
+            <h1 class="fw-bolder">Your Cart</h1>
+            <div id="cartList" class="cart-list"></div>
+        </section>
+        <aside class="cart-right">
+            <div id="cartSummary" class="summary"></div>
+        </aside>
+    </main>
+
+    <script>
+        const CART_KEY = 'kiks_cart';
+        function getCart(){ return JSON.parse(localStorage.getItem(CART_KEY))||[]; }
+        function setCart(c){ localStorage.setItem(CART_KEY, JSON.stringify(c)); renderCart(); }
+
+        function formatPrice(v){ return '$' + (Number(v)||0).toFixed(2); }
+
+        function renderCart(){
+            const list = getCart();
+            const el = document.getElementById('cartList');
+            const sumEl = document.getElementById('cartSummary');
+            if(!list.length){
+                el.innerHTML = '<div class="empty-state"><h3>Your cart is empty</h3><p class="text-sm muted">Browse products and add items to get started.</p></div>';
+                sumEl.innerHTML = '';
+                return;
+            }
+
+            el.innerHTML = list.map(i => `
+                <div class="cart-item">
+                    <div class="ci-thumb"><img src="${i.img}" onerror="this.src='./Assets/img/hero-image.png'"></div>
+                    <div class="ci-body">
+                        <div class="ci-name">${i.name}</div>
+                        <div class="ci-meta">
+                            <div class="ci-price">${formatPrice(i.price)}</div>
+                            <div class="qty-controls">
+                                <button aria-label="decrease" onclick="changeQty('${i.id}', -1)">-</button>
+                                <div class="text-sm">${i.qty||1}</div>
+                                <button aria-label="increase" onclick="changeQty('${i.id}', 1)">+</button>
+                            </div>
+                            <select class="size-select" onchange="changeSize('${i.id}', this.value)">
+                                <option value="">Size</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
+                                <option value="8">8</option>
+                                <option value="9">9</option>
+                                <option value="10">10</option>
+                            </select>
+                            <button class="remove-btn" onclick="removeItem('${i.id}')">Remove</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            const subtotal = list.reduce((s,i)=> s + (i.price * (i.qty||1)), 0);
+            sumEl.innerHTML = `
+                <div class="row"><span>Subtotal</span><span>${formatPrice(subtotal)}</span></div>
+                <div class="row"><span>Delivery</span><span>$5.00</span></div>
+                <div class="row total"><span>Total</span><span>${formatPrice(subtotal + 5)}</span></div>
+                <button class="checkout-btn" onclick="checkout()">Proceed to Checkout</button>
+            `;
+        }
+
+        function changeQty(id, delta){
+            let cart = getCart();
+            cart = cart.map(i => i.id===id ? ({...i, qty: Math.max(1,(i.qty||1)+delta)}) : i);
+            setCart(cart);
+        }
+
+        function changeSize(id, size){
+            let cart = getCart();
+            cart = cart.map(i => i.id===id ? ({...i, size}) : i);
+            setCart(cart);
+        }
+
+        function removeItem(id){
+            if(!confirm('Remove this item from cart?')) return;
+            let cart = getCart().filter(i => i.id!==id);
+            setCart(cart);
+        }
+
+        function checkout(){
+            const cart = getCart();
+            if(!cart.length){ alert('Your cart is empty.'); return; }
+            location.href = 'checkout.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', renderCart);
+    </script>
+</body>
+</html>

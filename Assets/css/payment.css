@@ -1,0 +1,38 @@
+:root{ --accent:#FF3C78; --accent-2:#315BFF; --muted:#6c6c6c; --card:#fff }
+body{ background: linear-gradient(180deg,#fff,#fbfbfd); }
+.payment-main{ max-width:720px; margin:36px auto; padding:12px; }
+.card{ background:var(--card); padding:18px; border-radius:12px; box-shadow:0 12px 30px rgba(17,24,39,0.06); }
+.methods{ display:flex; flex-direction:column; gap:10px; margin-top:10px; }
+.method{ display:flex; gap:12px; align-items:center; padding:12px; border-radius:10px; border:1px solid rgba(0,0,0,0.05); cursor:pointer; }
+.method input{ transform:scale(1.2); }
+.card-form{ margin-top:12px; }
+.row.small{ display:flex; gap:10px; }
+.control-btn{ background:linear-gradient(90deg,var(--accent) 0%, #ff8aa6 100%); color:#fff; border:none; padding:9px 12px; border-radius:10px; font-weight:700; cursor:pointer; }
+.btn-outline{ background:transparent; border:1px solid rgba(0,0,0,0.08); padding:9px 12px; border-radius:10px; cursor:pointer; }
+
+/* FUNKY floating background + blur */
+.floating-bg{ position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+.floating-bg .float{ position:absolute; width:260px; opacity:0.12; transform-origin:center; filter:drop-shadow(0 20px 40px rgba(49,91,255,0.08)); transition:transform 200ms linear, opacity 200ms linear; }
+.floating-bg .f1{ left:-6%; top:12%; animation:floatY 8s ease-in-out infinite; }
+.floating-bg .f2{ right:-8%; bottom:6%; width:320px; animation:floatY 10s ease-in-out infinite; }
+.floating-bg .f3{ left:30%; bottom:-6%; width:220px; animation:floatY 12s ease-in-out infinite; }
+
+@keyframes floatY{ 0%{ transform: translateY(0) } 50%{ transform: translateY(-18px) } 100%{ transform: translateY(0) } }
+
+/* place content above floating elements and add translucent glass effect */
+.payment-main, .card{ position:relative; z-index:1; }
+.card{ background: rgba(255,255,255,0.78); backdrop-filter: blur(6px) saturate(1.05); }
+
+/* method hover styles */
+.method{ transition: transform 220ms cubic-bezier(.2,.9,.2,1), box-shadow 220ms ease; }
+.method:hover{ transform: translateY(-6px) scale(1.02); box-shadow: 0 18px 40px rgba(17,24,39,0.12); border-color: rgba(255,60,120,0.18); }
+.method strong{ display:block; font-size:1rem; }
+.method .text-sm{ opacity:0.9; }
+
+/* glowy pay button */
+.control-btn{ box-shadow: 0 8px 30px rgba(255,60,120,0.18); }
+.control-btn:active{ transform: translateY(1px) scale(.998); }
+
+/* responsive adjustments */
+@media (max-width:480px){ .floating-bg .float{ display:none; } }
+

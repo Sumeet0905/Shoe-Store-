@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Order Tracking - Kiks</title>
+    <link rel="stylesheet" href="./Assets/css/style.css">
+    <link rel="stylesheet" href="./Assets/css/tracking.css">
+</head>
+<body class="page-tracking">
+    <nav class="product-nav">
+        <div class="logo"><a href="index.html"><img src="./Assets/img/logo.png" alt="logo"></a></div>
+        <ul class="nav-links">
+            <a class="list" href="index.html"><li>Home</li></a>
+            <a class="list" href="products.html"><li>Products</li></a>
+        </ul>
+        <ul class="nav-icons">
+            <a class="list" href="wishlist.html"><li><span class="material-symbols-outlined">favorite</span></li></a>
+            <a class="list" href="cart.html"><li><span class="material-symbols-outlined">shopping_bag</span></li></a>
+        </ul>
+    </nav>
+
+    <!-- floating decorative background (interactive) -->
+    <div class="floating-bg" aria-hidden="true">
+        <img src="./Assets/img/Shoes/golden.png" class="float f1" alt=""/>
+        <img src="./Assets/img/Shoes/Cyan.png" class="float f2" alt=""/>
+    </div>
+
+    <main class="track-main">
+        <div class="card">
+            <h2>Track your order</h2>
+            <div id="orderSummary"></div>
+            <div class="timeline" id="timeline">
+                <!-- timeline steps injected by JS -->
+            </div>
+            <div class="actions" style="margin-top:14px; text-align:right;"><a href="index.html" class="btn-outline">Continue Shopping</a></div>
+        </div>
+    </main>
+
+    <script>
+        const ORDER_KEY = 'kiks_order';
+        function getOrder(){ return JSON.parse(localStorage.getItem(ORDER_KEY))||null; }
+
+        function render(){
+            const o = getOrder();
+            const s = document.getElementById('orderSummary');
+            const t = document.getElementById('timeline');
+            if(!o){ s.innerHTML = '<p class="muted">No active order. Start shopping!</p>'; t.innerHTML=''; return; }
+
+            // compute expected delivery date (random between 7 and 14 days from order created)
+            const createdTs = o.created || o.createdAt || Date.now();
+            // Ensure createdMs is a numeric timestamp (ms). o.created may be ISO string.
+            let createdMs = (typeof createdTs === 'number') ? createdTs : (Date.parse(createdTs) || Date.now());
+            const minDays = 7; const maxDays = 14;
+            const randDays = Math.floor(Math.random() * (maxDays - minDays + 1)) + minDays;
+            const expected = new Date(createdMs + randDays * 24 * 60 * 60 * 1000);
+            const paymentLabel = (o.paymentMethod === 'cod') ? 'Cash on Delivery' : (o.paymentMethod ? 'Prepaid' : 'N/A');
+
+            s.innerHTML = `<div class="os-row"><strong>Order Placed:</strong> ${new Date(createdMs).toLocaleString()}</div>
+                           <div class="os-row"><strong>Payment:</strong> ${paymentLabel}</div>
+                           <div class="os-row"><strong>Delivery to:</strong> ${o.address ? (o.address.name + ', ' + (o.address.city||'')) : 'Not provided'}</div>
+                           <div class="os-row"><strong>Expected delivery:</strong> ${expected.toLocaleDateString()}</div>`;
+
+            const steps = [
+                {key:'pending', label:'Order received'},
+                {key:'paid', label:'Payment confirmed'},
+                {key:'packed', label:'Packed for shipment'},
+                {key:'shipped', label:'Shipped'},
+                {key:'delivered', label:'Delivered'}
+            ];
+
+            // determine active index
+            let idx = 0;
+            if(o.status === 'paid') idx = 1;
+            if(o.status === 'packed') idx = 2;
+            if(o.status === 'shipped') idx = 3;
+            if(o.status === 'delivered') idx = 4;
+            // For COD orders that are still pending, keep idx at 0 (payment step not active)
+
+            t.innerHTML = steps.map((st,i)=> `<div class="step ${i<=idx? 'active':''}"><div class="dot"></div><div class="label">${st.label}</div></div>`).join('');
+        }
+
+        document.addEventListener('DOMContentLoaded', render);
+        // subtle parallax for the floating images
+        (function(){
+            const floats = document.querySelectorAll('.floating-bg .float');
+            function onMove(e){
+                const x = (e.clientX / window.innerWidth) - 0.5;
+                const y = (e.clientY / window.innerHeight) - 0.5;
+                floats.forEach((el,i)=>{
+                    const depth = (i+1) * 6;
+                    el.style.transform = `translate3d(${x*depth}px, ${y*depth}px, 0) rotate(${x*8*i}deg)`;
+                });
+            }
+            window.addEventListener('mousemove', onMove);
+        })();
+    </script>
+</body>
+</html>

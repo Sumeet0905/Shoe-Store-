@@ -1,0 +1,22 @@
+:root{ --accent:#FF3C78; --accent-2:#315BFF; --muted:#6c6c6c; --bg:#F7F8FB; --card:#FFFFFF }
+.cart-main{ max-width:1100px; margin:32px auto; display:grid; grid-template-columns: 1fr 340px; gap:20px; padding:0 12px; }
+.cart-left{ display:flex; flex-direction:column; gap:14px; }
+.cart-right{ position:relative; }
+.cart-list .cart-item{ display:flex; gap:12px; align-items:center; padding:12px; border-radius:12px; background:var(--card); box-shadow:0 12px 30px rgba(16,24,40,0.04); }
+.ci-thumb{ width:110px; height:90px; background:linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0)); border-radius:8px; display:flex; align-items:center; justify-content:center; }
+.ci-thumb img{ max-width:92%; max-height:92%; object-fit:contain; }
+.ci-body{ flex:1 1 auto; display:flex; flex-direction:column; gap:6px; }
+.ci-name{ font-weight:800; font-size:1rem; }
+.ci-meta{ display:flex; gap:10px; align-items:center; }
+.ci-price{ color:var(--accent-2); font-weight:800; }
+.qty-controls{ display:flex; gap:6px; align-items:center; }
+.qty-controls button{ width:36px; height:36px; border-radius:8px; border:1px solid rgba(0,0,0,0.06); background:transparent; cursor:pointer; }
+.remove-btn{ background:transparent; border:none; color:#c82333; cursor:pointer; }
+.size-select{ padding:8px 10px; border-radius:8px; border:1px solid rgba(0,0,0,0.06); }
+.summary{ position:sticky; top:20px; padding:14px; border-radius:12px; background:var(--card); box-shadow:0 12px 30px rgba(16,24,40,0.04); display:flex; flex-direction:column; gap:10px; }
+.summary .row{ display:flex; justify-content:space-between; }
+.summary .total{ font-weight:900; font-size:1.2rem; }
+.checkout-btn{ background:linear-gradient(90deg,var(--accent) 0%, #ff8aa6 100%); color:white; border:none; padding:12px; border-radius:10px; font-weight:800; cursor:pointer; width:100%; box-shadow:0 12px 40px rgba(255,60,120,0.12); }
+.empty-state{ padding:36px; text-align:center; background:linear-gradient(180deg, rgba(255,60,120,0.04), rgba(49,91,255,0.01)); border-radius:12px; }
+
+@media (max-width:980px){ .cart-main{ grid-template-columns: 1fr; } .cart-right{ order:2; } }

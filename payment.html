@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Payment - Kiks</title>
+    <link rel="stylesheet" href="./Assets/css/style.css">
+    <link rel="stylesheet" href="./Assets/css/payment.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <style>
+        /* Minimal necessary styles for structure */
+        .page-payment { display: flex; flex-direction: column; min-height: 100vh; }
+        .payment-main { flex-grow: 1; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .card { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 500px; width: 100%; z-index: 10; }
+        .methods { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .method { display: flex; align-items: center; gap: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; }
+        .control-btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; background-color: var(--primary-color, #007bff); color: white; font-weight: bold; }
+        .btn-outline { background: transparent; border: 1px solid #ccc; color: #333; }
+    </style>
+</head>
+<body class="page-payment">
+    <nav class="product-nav">
+        <div class="logo"><a href="index.html"><img src="./Assets/img/logo.png" alt="logo"></a></div>
+        <ul class="nav-links">
+            <a class="list" href="index.html"><li>Home</li></a>
+            <a class="list" href="products.html"><li>Products</li></a>
+        </ul>
+        <ul class="nav-icons">
+            <a class="list" href="wishlist.html"><li><span class="material-symbols-outlined">favorite</span></li></a>
+            <a class="list" href="cart.html"><li><span class="material-symbols-outlined">shopping_bag</span></li></a>
+        </ul>
+    </nav>
+    
+    <div class="floating-bg" aria-hidden="true">
+        <img src="./Assets/img/Shoes/golden.png" class="float f1" alt=""/>
+        <img src="./Assets/img/Shoes/orange-2.png" class="float f2" alt=""/>
+        <img src="./Assets/img/Shoes/red.png" class="float f3" alt=""/>
+    </div>
+
+    <main class="payment-main">
+        <div class="card">
+            <h2>Choose payment method</h2>
+            <div class="methods">
+                <label class="method">
+                    <input type="radio" name="pm" value="card" checked>
+                    <div>
+                        <strong>Credit / Debit Card</strong>
+                        <div class="text-sm">Pay securely with your card</div>
+                    </div>
+                </label>
+
+                <label class="method">
+                    <input type="radio" name="pm" value="netbank">
+                    <div>
+                        <strong>Netbanking / UPI</strong>
+                        <div class="text-sm">Use UPI or netbanking providers (Razorpay, etc.)</div>
+                    </div>
+                </label>
+
+                <label class="method">
+                    <input type="radio" name="pm" value="cod">
+                    <div>
+                        <strong>Cash on Delivery</strong>
+                        <div class="text-sm">Pay when the courier delivers</div>
+                    </div>
+                </label>
+            </div>
+
+            <div id="qr-code-container" style="display:none; margin-top:12px; text-align:center;"></div>
+
+            <div class="actions" style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end;">
+                <button id="payNow" class="control-btn">Pay Now</button>
+                <button id="payCancel" class="btn-outline">Cancel</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+
+    <script>
+        // --- Configuration ---
+        const ORDER_KEY = 'kiks_order';
+        const UPI_VPA = 'sumeetsingh0905@okhdfcbank'; // Your configured UPI VPA
+
+        // --- Utility Functions ---
+
+        // Try multiple localStorage keys and robustly parse JSON, with logging for debugging
+        function getOrder() {
+            const keysToTry = [ORDER_KEY, 'order', 'kiksOrder', 'lastOrder', 'currentOrder'];
+            let raw = null;
+            let usedKey = null;
+            for (const k of keysToTry) {
+                raw = localStorage.getItem(k);
+                if (raw) { usedKey = k; break; }
+            }
+            if (!raw) {
+                console.warn('getOrder: no order data found in localStorage. Keys tried:', keysToTry);
+                return null;
+            }
+
+            try {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+                    console.log('getOrder: parsed order from localStorage key', usedKey, parsed);
+                    return parsed;
+                }
+                console.error('getOrder: parsed order is empty or invalid for key', usedKey, parsed);
+                return null;
+            } catch (err) {
+                // Log the raw value to help debugging (don't alter it automatically)
+                console.error('getOrder: failed to parse JSON from key', usedKey, 'raw:', raw, err);
+                return null;
+            }
+        }
+
+        function computeOrderAmount(order) {
+            if (!order) return 0;
+            const total = order.total || (Array.isArray(order.items) ?
+                order.items.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 1), 0) : 0);
+            return Math.round(total * 100); 
+        }
+
+        // --- Core Flow Logic ---
+
+        // *FIX 3: Immediate Validation and Silent Redirect*
+        (function validateOrderOnLoad() {
+            const order = getOrder();
+            if (!order || computeOrderAmount(order) <= 0) {
+                console.warn("Order validation failed on load. Redirecting to cart.");
+                window.location.replace('cart.html');
+                return;
+            }
+            // Store the valid order globally for the rest of the script
+            window.currentOrder = order;
+            console.log('validateOrderOnLoad: order loaded and stored to window.currentOrder');
+        })();
+        
+        function simulatePayment(method) {
+            const order = window.currentOrder;
+            if (!order) return; 
+
+            // Update order status based on payment method
+            order.status = (method === 'cod') ? 'pending' : 'paid';
+            order.paymentMethod = method;
+            if (method !== 'cod') order.paidAt = Date.now();
+            
+            // Save the updated order status
+            localStorage.setItem(ORDER_KEY, JSON.stringify(order));
+            
+            // Redirect to tracking/success page
+            setTimeout(() => location.href = 'tracking.html', 500);
+        }
+
+        function openRazorpayCheckout(order) {
+            const amount = computeOrderAmount(order);
+            if (!amount) { console.error('Invalid order amount for Razorpay.'); return; }
+
+            // NOTE: REPLACE KEY WITH YOUR ACTUAL KEY
+            const options = {
+                key: 'rzp_test_XXXXXXXXXXXXXXXX', 
+                amount: amount,
+                currency: 'INR',
+                name: 'Kiks Square',
+                description: 'Order Payment',
+                handler: function(response) {
+                    const o = getOrder();
+                    if (o) { 
+                        o.status = 'paid'; 
+                        o.paymentMethod = 'razorpay'; 
+                        o.razorpay = response; 
+                        localStorage.setItem(ORDER_KEY, JSON.stringify(o)); 
+                    }
+                    window.location.href = 'success.html';
+                },
+                modal: {
+                    ondismiss: function() {
+                        window.location.href = 'failed.html';
+                    }
+                }
+            };
+
+            const rzp = new Razorpay(options);
+            rzp.open();
+        }
+
+        function generateUPIQRCode(order, qrContainer, payBtn) {
+            if (!window.QRious) { console.error('QR library not available.'); return; }
+            
+            const amountPaise = computeOrderAmount(order);
+            const amount = (amountPaise / 100).toFixed(2);
+            
+            const pa = encodeURIComponent(UPI_VPA);
+            const pn = encodeURIComponent('Kiks Square');
+            const am = encodeURIComponent(amount);
+            const tn = encodeURIComponent('Order' + (order.id || ''));
+            const upi = `upi://pay?pa=${pa}&pn=${pn}&am=${am}&cu=INR&tn=${tn}`;
+
+            qrContainer.innerHTML = '';
+            const canvas = document.createElement('canvas');
+            qrContainer.appendChild(canvas);
+
+            new QRious({ element: canvas, value: upi, size: 260 });
+
+            const info = document.createElement('div');
+            info.style.marginTop = '12px';
+            info.style.fontSize = '14px';
+            info.style.color = '#555';
+            info.innerHTML = `Scan this UPI QR to pay **₹${amount}** to **${UPI_VPA}**.<br>Once paid, click **Continue** below.`;
+            qrContainer.appendChild(info);
+
+            qrContainer.style.display = 'block';
+            window.qrVisible = true;
+            payBtn.textContent = "Continue to Tracking"; // Update button text
+            canvas.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+
+        // --- Event Listeners ---
+        
+        (function setupEventListeners() {
+            const payBtn = document.getElementById('payNow');
+            const cancelBtn = document.getElementById('payCancel');
+            const qrContainer = document.getElementById('qr-code-container');
+            
+            if (!payBtn || !cancelBtn) return;
+
+            payBtn.addEventListener('click', () => {
+                // prefer global cached order but fall back to reading localStorage again
+                let order = window.currentOrder || getOrder();
+                if (!order) {
+                    // If still not found, dump helpful debug info and redirect
+                    console.error('Pay Now: order not found. localStorage keys snapshot:');
+                    try {
+                        for (const k of [ORDER_KEY, 'order', 'kiksOrder', 'lastOrder', 'currentOrder']) {
+                            console.log(k + ':', localStorage.getItem(k));
+                        }
+                    } catch (e) { console.error('Unable to read localStorage snapshot', e); }
+                    alert('Order not found. You will be redirected to the cart.');
+                    window.location.replace('cart.html');
+                    return;
+                }
+
+                const method = document.querySelector('input[name="pm"]:checked').value;
+
+                if (method === 'card') {
+                    openRazorpayCheckout(order);
+                } else if (method === 'netbank') {
+                    if (!window.qrVisible) {
+                        generateUPIQRCode(order, qrContainer, payBtn);
+                    } else {
+                        // User clicked 'Continue' after seeing QR
+                        simulatePayment('upi_manual');
+                    }
+                } else if (method === 'cod') {
+                    simulatePayment('cod');
+                }
+            });
+
+            // Cancel button redirects back to the checkout page
+            cancelBtn.addEventListener('click', () => {
+                window.location.href = 'checkout.html';
+            });
+            
+            // Listener for radio buttons to reset/hide QR code container when method changes
+            document.querySelectorAll('input[name="pm"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    qrContainer.style.display = 'none';
+                    window.qrVisible = false;
+                    payBtn.textContent = "Pay Now";
+                });
+            });
+        })();
+
+        // Parallax / subtle interactivity for floating bg
+        (function(){
+            const floats = document.querySelectorAll('.floating-bg .float');
+            function onMove(e){
+                const x = (e.clientX / window.innerWidth) - 0.5;
+                const y = (e.clientY / window.innerHeight) - 0.5;
+                floats.forEach((el,i)=>{
+                    const depth = (i+1) * 8; 
+                    el.style.transform = `translate3d(${x*depth}px, ${y*depth}px, 0) rotate(${x*10*i}deg)`;
+                    el.style.opacity = 0.12 + (0.06 * Math.abs(x));
+                });
+            }
+            window.addEventListener('mousemove', onMove);
+        })();
+    </script>
+</body>
+</html>

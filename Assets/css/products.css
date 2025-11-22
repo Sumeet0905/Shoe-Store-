@@ -1,0 +1,114 @@
+/* product listing page styling - matches main color scheme */
+:root{
+    --accent: #FF3C78;
+    --accent-2: #315BFF;
+    --card-bg: #fff;
+    --muted: #6c6c6c;
+    --shadow: 0 8px 18px rgba(18,18,20,0.06);
+}
+
+/* default: show 4 cards per row on large screens so at least 4 shoes are visible */
+.products-grid{
+    display:grid;
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
+    gap:18px;
+    align-items:start;
+}
+
+/* product card uses 3:4 ratio but smaller padding to fit more items */
+.product-card{
+    background: var(--card-bg);
+    border-radius:12px;
+    padding:10px;
+    box-shadow: var(--shadow);
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    align-items:stretch;
+    transition: transform 180ms ease, box-shadow 180ms ease;
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+}
+.product-card:hover{ transform: translateY(-4px); box-shadow: 0 16px 34px rgba(16,16,16,0.06); }
+
+/* image area scaled down */
+.prod-image{
+    width:100%;
+    height:58%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.00));
+    border-radius:8px;
+    padding:8px;
+    box-sizing:border-box;
+}
+.prod-image img{
+    max-width:88%;
+    max-height:88%;
+    object-fit:contain;
+    transition: transform 200ms ease;
+}
+.product-card:hover .prod-image img{ transform: scale(1.02); }
+
+.prod-body{
+    flex:1 1 auto;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+    gap:8px;
+    padding-top:4px;
+}
+.prod-title{ font-weight:700; font-size:0.98rem; margin:0; }
+.prod-price{ color:var(--accent-2); font-weight:800; font-size:1rem; }
+
+/* compact action row */
+.prod-actions{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:4px;
+}
+.action-btn{
+    border: none;
+    padding:8px 10px;
+    border-radius:8px;
+    cursor:pointer;
+    display:inline-flex;
+    gap:6px;
+    align-items:center;
+    background: linear-gradient(90deg,var(--accent) 0%, #ff8aa6 100%);
+    color:#fff;
+    font-weight:700;
+    flex:1 1 auto;
+    font-size:0.92rem;
+}
+.icon-btn{
+    background:transparent;
+    border:1px solid rgba(0,0,0,0.06);
+    padding:8px;
+    border-radius:8px;
+    cursor:pointer;
+    flex:0 0 auto;
+}
+.icon-btn .material-symbols-outlined{ font-size:16px; color:#333; }
+
+/* wishlist heart filled state */
+.icon-btn.active{ border-color: rgba(255,60,120,0.18); background: rgba(255,60,120,0.06); }
+
+/* responsive breakpoints */
+/* medium screens: 2 columns */
+@media (max-width:1199px) and (min-width:781px){
+    .products-grid{ grid-template-columns: repeat(2, minmax(220px, 1fr)); gap:20px; }
+    .product-card{ padding:12px; border-radius:12px; }
+}
+
+/* small screens: 1 column */
+@media (max-width:780px){
+    .products-grid{ grid-template-columns: 1fr; gap:16px; }
+    .product-card{ aspect-ratio: 3 / 4; padding:10px; }
+    .prod-image{ height:56%; }
+    .prod-image img{ max-width:88%; }
+    .product-nav .logo img{ height:56px; }
+}
